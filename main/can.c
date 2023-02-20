@@ -33,6 +33,7 @@
 static const char *TAG = "can";
 
 bool update_bms_received = false;
+bool update_bmu_received = false;
 bool update_mppt_received = false;
 
 xQueueHandle receive_queue;
@@ -57,11 +58,11 @@ static const twai_general_config_t g_config =
     TWAI_GENERAL_CONFIG_DEFAULT(CONFIG_GPIO_CAN_TX, CONFIG_GPIO_CAN_RX, TWAI_MODE_NORMAL);
 
 DataObject data_obj_bms[] = {
-    {0x70, "Bat_V",     {0}, 0},
-    {0x71, "Bat_A",     {0}, 0},
-    {0x72, "Bat_degC",  {0}, 0},
-    {0x76, "IC_degC",   {0}, 0},
-    {0x77, "MOSFETs_degC",  {0}, 0},
+    {0x70, "Bat_V",     {0}, 0},        // choose
+    {0x71, "Bat_A",     {0}, 0},        // choose
+    {0x72, "Bat_degC",  {0}, 0},        // choose
+    {0x76, "IC_degC",   {0}, 0},        // remove
+    {0x77, "MOSFETs_degC",  {0}, 0},    // remove
 /*
     {0x03, "Cell1_V",   {0}, 0},
     {0x04, "Cell2_V",   {0}, 0},
@@ -72,30 +73,37 @@ DataObject data_obj_bms[] = {
 */
 };
 
-DataObject data_obj_mppt[] = {
-    {0x04, "LoadState",     {0}, 0},
-    {0x0F, "SolarMaxDay_W", {0}, 0},
-    {0x10, "LoadMaxDay_W",  {0}, 0},
-    {0x70, "Bat_V",         {0}, 0},
-    {0x71, "Solar_V",       {0}, 0},
-    {0x72, "Bat_A",         {0}, 0},
-    {0x73, "Load_A",        {0}, 0},
-    {0x74, "Bat_degC",      {0}, 0},
-    {0x76, "Int_degC",      {0}, 0},
-    {0x77, "Mosfet_degC",   {0}, 0},
-    {0x78, "ChgState",      {0}, 0},
-    {0x79, "DCDCState",     {0}, 0},
-    {0x7a, "Solar_A",       {0}, 0},
-    {0x7d, "Bat_W",         {0}, 0},
-    {0x7e, "Solar_W",       {0}, 0},
-    {0x7f, "Load_W",        {0}, 0},
-    {0xa0, "SolarInDay_Wh", {0}, 0},
-    {0xa1, "LoadOutDay_Wh", {0}, 0},
-    {0xa2, "BatChgDay_Wh",  {0}, 0},
-    {0xa3, "BatDisDay_Wh",  {0}, 0},
-    {0x06, "SOC",           {0}, 0},
-    {0xA4, "Dis_Ah",        {0}, 0}
+DataObject data_obj_bmu[] = {
+    {0x51, "Bat_V_A",           {0}, 0},    
+    {0x52, "SOC_BatDegC",       {0}, 0},   
+    {0x53, "ErrorFlag_Balance", {0}, 0},      
 };
+
+DataObject data_obj_mppt[] = {
+    {0x04, "LoadState",     {0}, 0},    // bms->status.state
+    {0x0F, "SolarMaxDay_W", {0}, 0},    // update after
+    {0x10, "LoadMaxDay_W",  {0}, 0},    // update after  
+    {0x70, "Bat_V",         {0}, 0},    // choose
+    {0x71, "Solar_V",       {0}, 0},    // update after
+    {0x72, "Bat_A",         {0}, 0},    // choose
+    {0x73, "Load_A",        {0}, 0},    // update after
+    {0x74, "Bat_degC",      {0}, 0},    // choose
+    {0x76, "Int_degC",      {0}, 0},    // remove
+    {0x77, "Mosfet_degC",   {0}, 0},    // remove
+    {0x78, "ChgState",      {0}, 0},    // bms->status.state
+    {0x79, "DCDCState",     {0}, 0},    // update after
+    {0x7a, "Solar_A",       {0}, 0},    // update after
+    {0x7d, "Bat_W",         {0}, 0},    // choose
+    {0x7e, "Solar_W",       {0}, 0},    // update after
+    {0x7f, "Load_W",        {0}, 0},    // update after
+    {0xa0, "SolarInDay_Wh", {0}, 0},    // update after
+    {0xa1, "LoadOutDay_Wh", {0}, 0},    // update after
+    {0xa2, "BatChgDay_Wh",  {0}, 0},    // update after
+    {0xa3, "BatDisDay_Wh",  {0}, 0},    // update after
+    {0x06, "SOC",           {0}, 0},    // choose
+    {0xA4, "Dis_Ah",        {0}, 0}     // update after
+};
+
 
 static int generate_json_string(char *buf, size_t len, DataObject *objs, size_t num_objs)
 {
@@ -197,6 +205,13 @@ char *get_bms_json_data()
     return json_buf;
 }
 
+char *get_bmu_json_data()
+{
+    generate_json_string(json_buf, sizeof(json_buf),
+        data_obj_bmu, sizeof(data_obj_bmu)/sizeof(DataObject));
+    return json_buf;
+}
+
 void can_setup()
 {
 
@@ -233,7 +248,7 @@ void can_receive_task(void *arg)
     uint8_t payload[1000];
     int ret;
     while (1) {
-        ret = twai_receive(&message, pdMS_TO_TICKS(100));
+        ret = twai_receive(&message, pdMS_TO_TICKS(1));
         if (ret == ESP_OK) {
             device_addr = message.identifier & 0x000000FF;
             ESP_LOGD(TAG, "Received CAN msg from %.2x", device_addr);
@@ -286,6 +301,16 @@ void can_receive_task(void *arg)
                     }
                     update_bms_received = true;
                 }
+                else if (device_addr == 5) {
+                    for (int i = 0; i < sizeof(data_obj_bmu) / sizeof(DataObject); i++) {
+                        if (data_obj_bmu[i].id == data_node_id) {
+                            memcpy(data_obj_bmu[i].raw_data, message.data,
+                                message.data_length_code);
+                            data_obj_bmu[i].len = message.data_length_code;
+                        }
+                    }
+                    update_bmu_received = true;
+                }
                 else if (device_addr == 10) {
                     for (int i = 0; i < sizeof(data_obj_mppt) / sizeof(DataObject); i++) {
                         if (data_obj_mppt[i].id == data_node_id) {
@@ -296,6 +321,7 @@ void can_receive_task(void *arg)
                     }
                     update_mppt_received = true;
                 }
+
                 ESP_LOGD(TAG, "Received pub-msg on CAN:");
                 ESP_LOG_BUFFER_HEX_LEVEL(TAG, message.data, message.data_length_code, ESP_LOG_DEBUG);
             }

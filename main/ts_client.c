@@ -20,7 +20,7 @@
 
 static const char *TAG = "ts_client";
 
-static TSDevice *devices[10];
+static TSDevice *devices[10];       // how to crease to 16 devices
 extern char device_id[9];
 extern GeneralConfig general_config;
 

@@ -122,6 +122,7 @@ void emoncms_post_task(void *arg)
 
         // wait until we receive an update
         while (update_bms_received == false &&
+               update_bmu_received == false &&
                update_mppt_received == false &&
                pub_msg == NULL)
         {
@@ -150,6 +151,16 @@ void emoncms_post_task(void *arg)
             gpio_set_level(CONFIG_GPIO_LED, 0);
             send_emoncms(res, emon_config.bms, get_bms_json_data());
             update_bms_received = false;
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+        gpio_set_level(CONFIG_GPIO_LED, 1);
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+        if (update_bmu_received) {
+            // gpio_set_level(CONFIG_GPIO_LED, 0);
+            send_emoncms(res, emon_config.bmu, get_bmu_json_data());
+            update_bmu_received = false;
             vTaskDelay(100 / portTICK_PERIOD_MS);
         }
         gpio_set_level(CONFIG_GPIO_LED, 1);

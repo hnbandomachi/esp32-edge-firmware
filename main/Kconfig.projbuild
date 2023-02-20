@@ -117,4 +117,8 @@ menu "User Configuration"
         string "Node name of BMS connected via CAN"
         default "bms"
 
+    config EMONCMS_NODE_BMU
+        string "Node name of BMU connected via CAN"
+        default "bmu"
+
 endmenu

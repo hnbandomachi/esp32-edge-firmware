@@ -126,6 +126,7 @@ typedef struct {
     char serial_node[STRING_LEN];
     char mppt[STRING_LEN];
     char bms[STRING_LEN];
+    char bmu[STRING_LEN];
 } EmoncmsConfig;
 
 typedef struct {

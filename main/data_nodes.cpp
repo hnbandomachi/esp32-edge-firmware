@@ -82,6 +82,9 @@ static DataNode data_nodes[] = {
     TS_NODE_STRING(0x3E, "BMS", emon_config.bms, STRING_LEN,
         ID_CONF_EMONCMS, TS_ANY_R | TS_ANY_W, PUB_NVM),
 
+    TS_NODE_STRING(0xE2, "BMU", emon_config.bmu, STRING_LEN,
+        ID_CONF_EMONCMS, TS_ANY_R | TS_ANY_W, PUB_NVM),
+
     TS_NODE_STRING(0x3F, "Port", emon_config.port, STRING_LEN,
         ID_CONF_EMONCMS, TS_ANY_R | TS_ANY_W, PUB_NVM),
 
@@ -338,6 +341,7 @@ void config_nodes_load_kconfig()
     strncpy(emon_config.serial_node, CONFIG_EMONCMS_NODE_SERIAL, sizeof(emon_config.serial_node));
     strncpy(emon_config.mppt, CONFIG_EMONCMS_NODE_MPPT, sizeof(emon_config.mppt));
     strncpy(emon_config.bms, CONFIG_EMONCMS_NODE_BMS, sizeof(emon_config.bms));
+    strncpy(emon_config.bmu, CONFIG_EMONCMS_NODE_BMU, sizeof(emon_config.bmu));
 }
 
 char *build_query(uint8_t method, char *node, char *payload)

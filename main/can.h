@@ -23,6 +23,7 @@ typedef struct {
 #define CAN_TS_T_DECFRAC 36
 
 extern bool update_bms_received;
+extern bool update_bmu_received;
 extern bool update_mppt_received;
 
 typedef struct {
@@ -78,3 +79,4 @@ char *get_mppt_json_data();
  * \returns pointer to the buffer
  */
 char *get_bms_json_data();
+char *get_bmu_json_data();
